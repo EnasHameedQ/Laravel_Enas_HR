@@ -34,4 +34,6 @@ class User_profile extends Controller
   {
     return view('dashboard.skills');
   }
+
+  
 }
