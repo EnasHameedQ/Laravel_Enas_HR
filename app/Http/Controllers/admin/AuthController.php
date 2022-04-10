@@ -5,6 +5,7 @@ namespace App\Http\Controllers\admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
@@ -14,48 +15,60 @@ class AuthController extends Controller
 
     public function listAll()
     {
-        return view('admin.users.list_users');
+
+        $users = User::where('is_active', 1)
+            ->where('email_verified_at', '!=', NULL)
+            ->orWhere('name', 'like', '%af%')
+            ->orderBy('user_id', 'desc')
+            // ->take(2)
+            ->get();
+        //$user=User::find(1);
+        //return response($user);
+        return view('admin.users.list_users')
+            ->with('allUsers', $users);
     }
 
     public function showLogin()
     {
-        return view('admin.login');
+        if (Auth::check())
+            return redirect()->route($this->checkRole());
+        else
+            return view('admin.login');
+    }
+
+
+
+    public function checkRole()
+    {
+        if (Auth::user()->hasRole('admin'))
+            return 'dashboard';
+        else
+            return 'home';
     }
 
     public function login(Request $request)
     {
         Validator::validate($request->all(), [
-            'email_username' => ['email', 'required', 'min:3', 'max:10', 'unique:users'],
+            'email_username' => ['email', 'required', 'min:3', 'max:50'],
             'user_pass' => ['required', 'min:5']
 
 
         ], [
             'email_username.required' => 'this field is required',
             'email_username.min' => 'can not be less than 3 letters',
-            'email_username.unique' => 'there is an email in the table',
+
         ]);
 
-        $u = new User();
-        $u->name = $request->input('email_username');
-        $u->save();
+        if (Auth::attempt(['email' => $request->email_username, 'password' => $request->user_pass, 'is_active' => 1])) {
 
 
-
-        /*  echo $request->input('email_username');
-        echo "<br>";
-        echo $request->has('user_pass');*/
-
-        /*print_r($request->input());
-        echo "<br>";
-        echo $request->has('user_pass');
-        echo"<br>";
-        if(!$request->filled('user_pass')) echo "empty data";
-        //$request->file('profile_image');
-      $request->hasFile('profile_image');
-        
-        //echo $request->email_username;
-        //print_r($request->input());
-        */
+            if (Auth::user()->hasRole('admin'))
+                return redirect()->route('dashboard');
+            else
+                return redirect()->route('home');
+        } else {
+            return redirect()->route('login')->with(['message' => 'incorerct username or password or your account is not active ']);
+        }
     }
 
     public function createUser()
@@ -67,8 +80,8 @@ class AuthController extends Controller
     {
 
         Validator::validate($request->all(), [
-            'full_name' => ['required', 'min:3', 'max:10'],
-            'u_email' => ['required', 'email', 'unique:users,email'],
+            'full_name' => ['required', 'min:3', 'max:50'],
+            'u_email' => ['required', 'email', 'unique:elib_users,email'],
             'user_pass' => ['required', 'min:5'],
             'confirm_pass' => ['same:user_pass']
 
@@ -90,15 +103,32 @@ class AuthController extends Controller
         $u->name = $request->full_name;
         $u->password = Hash::make($request->user_pass);
         $u->email = $request->u_email;
-        if ($u->save())
+
+        if ($u->save()) {
+            $u->attachRole('admin');
             return redirect()->route('home')
                 ->with(['success' => 'user created successful']);
+        }
+
+
         return back()->with(['error' => 'can not create user']);
+    }
+
+
+    public function editUser()
+    {
+        $u = User::find(5);
+        if ($u->hasRole('admin')) {
+        } else {
+        }
     }
     public function resetPassword()
     {
     }
     public function logout()
     {
+
+        Auth::logout();
+        return redirect()->route('login');
     }
 }
