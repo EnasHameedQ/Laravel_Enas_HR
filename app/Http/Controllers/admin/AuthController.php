@@ -1,17 +1,44 @@
 <?php
 
-namespace App\Http\Controllers\admin;
+namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Auth\Events\Registered;
+use App\Http\Requests\Auth\LoginRequest;
+use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
 {
-    //
+
+    public function register(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => ['required', 'confirmed', Password::defaults()],
+        ]);
+
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+        ]);
+
+        event(new Registered($user));
+
+        $token = $user->createToken('authtoken');
+
+        return response()->json(
+            [
+                'message' => 'User Registered',
+                'data' => ['token' => $token->plainTextToken, 'user' => $user]
+            ]
+        );
+}
 
     public function listAll()
     {
@@ -46,38 +73,14 @@ class AuthController extends Controller
             return 'home';
     }
 
-    public function login(Request $request)
-    {
-        Validator::validate($request->all(), [
-            'email_username' => ['email', 'required', 'min:3', 'max:50'],
-            'user_pass' => ['required', 'min:5']
-
-
-        ], [
-            'email_username.required' => 'this field is required',
-            'email_username.min' => 'can not be less than 3 letters',
-
-        ]);
-
-        if (Auth::attempt(['email' => $request->email_username, 'password' => $request->user_pass, 'is_active' => 1])) {
-
-
-            if (Auth::user()->hasRole('admin'))
-                return redirect()->route('dashboard');
-            else
-                return redirect()->route('home');
-        } else {
-            return redirect()->route('login')->with(['message' => 'incorerct username or password or your account is not active ']);
-        }
+   
     }
 
-    public function createUser()
-    {
-        return view('admin.users.create');
-    }
 
-    public function register(Request $request)
+    public function login(LoginRequest $request)
     {
+        $request->authenticate();
+
 
         Validator::validate($request->all(), [
             'full_name' => ['required', 'min:3', 'max:50'],
@@ -86,18 +89,20 @@ class AuthController extends Controller
             'confirm_pass' => ['same:user_pass']
 
 
-        ], [
-            'full_name.required' => 'this field is required',
-            'full_name.min' => 'can not be less than 3 letters',
-            'u_email.unique' => 'there is an email in the table',
-            'u_email.required' => 'this field is required',
-            'u_email.email' => 'incorrect email format',
-            'user_pass.required' => 'password is required',
-            'user_pass.min' => 'password should not be less than 3',
-            'confirm_pass.same' => 'password dont match',
+        $token = $request->user()->createToken('authtoken');
 
+        return response()->json(
+            [
+                'message' => 'Logged in baby',
+                'data' => [
+                    'user' => $request->user(),
+                    'token' => $token->plainTextToken
+                ]
+            ]
+        );
+    }
 
-        ]);
+  
 
         $u = new User();
         $u->name = $request->full_name;
@@ -130,5 +135,6 @@ class AuthController extends Controller
 
         Auth::logout();
         return redirect()->route('login');
+
     }
 }
