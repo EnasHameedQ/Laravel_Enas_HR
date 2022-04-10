@@ -7,11 +7,16 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
-use App\Notifications\ResetPasswordNotification;
+use Laratrust\Traits\LaratrustUserTrait;
 
-
-class User extends Authenticatable implements MustVerifyEmail
+class User extends Authenticatable
 {
+    use LaratrustUserTrait;
+
+
+    protected $table="elib_users";
+    protected $primaryKey="user_id";
+    
     use HasApiTokens, HasFactory, Notifiable;
 
     /**
@@ -46,12 +51,11 @@ class User extends Authenticatable implements MustVerifyEmail
 
 
 
-    public function sendPasswordResetNotification($token)
-    {
+    public function profile(){
+        return $this->hasOne(UserProfile::class,'user_id');
+    }
 
-        $url = 'https://spa.test/reset-password?token=' . $token;
-
-        $this->notify(new ResetPasswordNotification($url));
-
+    public function products(){
+        return $this->hasMany(Product::class,'user_id');
     }
 }
