@@ -51,7 +51,20 @@ Route::get('/show_all_add', [AuthController::class, 'listAll'])->name("show_job"
 
 Route::get('/create_job', [AuthController::class, 'create_job'])->name('create_job');
 Route::post('/save_compony', [AuthController::class, 'save_job'])->name('save_job');
-Route::get('/show_all_job', [AuthController::class, 'listAll'])->name("show_job");
+Route::get('/show_all_job', [AuthController::class, 'listAll'])->name
+("show_job");
+
+
+Route::post('login', [AuthController::class, 'login']);
+Route::post('register', [AuthController::class, 'register']);
+Route::post('logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+
+Route::post('email/verification-notification', [EmailVerificationController::class, 'sendVerificationEmail'])->middleware('auth:sanctum');
+Route::get('verify-email/{id}/{hash}', [EmailVerificationController::class, 'verify'])->name('verification.verify')->middleware('auth:sanctum');
+
+Route::post('forgot-password', [NewPasswordController::class, 'forgotPassword']);
+Route::post('reset-password', [NewPasswordController::class, 'reset']);
+
 //end  admin pages
 // start dashbord pages
 Route::get('/main-dashboard', [User_profile::class, 'dashboard'])->name('main-dashboard');
